@@ -53,10 +53,22 @@ def get_table_items(table_widget):
 def update_compare_stats(src_table, dst_table, missing_label):
     src_items = get_table_items(src_table)
     dst_items = get_table_items(dst_table)
-    missing = src_items - dst_items
+
+    def stem(name: str) -> str:
+        return os.path.splitext(name)[0].lower()
+
+    dst_stems = {stem(n) for n in dst_items}
+    src_stems = {stem(n) for n in src_items}
+
+    missing = set()
+    for name in src_items:
+        if name in dst_items:
+            continue
+        if stem(name) in dst_stems:
+            continue
+        missing.add(name)
+
     missing_label.setText(f"Missing: {len(missing)}")
-    palette = src_table.palette()
-    default_color = palette.color(QPalette.Text)
     match_color = QColor('#2e7d32')
     for row in range(src_table.rowCount()):
         it = src_table.item(row, 0)
@@ -67,13 +79,13 @@ def update_compare_stats(src_table, dst_table, missing_label):
             it.setForeground(QBrush(QColor('red')))
         else:
             it.setForeground(QBrush(match_color))
-    matched = src_items & dst_items
+
     for row in range(dst_table.rowCount()):
         it = dst_table.item(row, 0)
         if not it:
             continue
         name = it.text()
-        if name in matched:
+        if name in src_items or stem(name) in src_stems:
             it.setForeground(QBrush(match_color))
         else:
             it.setForeground(QBrush(QColor('red')))
