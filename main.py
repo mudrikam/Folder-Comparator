@@ -50,10 +50,10 @@ def get_table_items(table_widget):
     return items
 
 
-def update_compare_stats(src_table, dst_table, missing_label):
-    src_items = get_table_items(src_table)
-    dst_items = get_table_items(dst_table)
-
+def get_missing_files(src_items, dst_items):
+    """Return set of source filenames that don't exist in destination.
+    Uses stem (basename without extension) matching for smart comparison.
+    """
     def stem(name: str) -> str:
         return os.path.splitext(name)[0].lower()
 
@@ -67,6 +67,13 @@ def update_compare_stats(src_table, dst_table, missing_label):
         if stem(name) in dst_stems:
             continue
         missing.add(name)
+    return missing
+
+
+def update_compare_stats(src_table, dst_table, missing_label):
+    src_items = get_table_items(src_table)
+    dst_items = get_table_items(dst_table)
+    missing = get_missing_files(src_items, dst_items)
 
     missing_label.setText(f"Missing: {len(missing)}")
     match_color = QColor('#2e7d32')
@@ -85,7 +92,7 @@ def update_compare_stats(src_table, dst_table, missing_label):
         if not it:
             continue
         name = it.text()
-        if name in src_items or stem(name) in src_stems:
+        if name in src_items or os.path.splitext(name)[0].lower() in {os.path.splitext(n)[0].lower() for n in src_items}:
             it.setForeground(QBrush(match_color))
         else:
             it.setForeground(QBrush(QColor('red')))
@@ -458,7 +465,9 @@ def main():
         if not os.path.isdir(dst_folder) or not os.access(dst_folder, os.W_OK):
             QMessageBox.critical(window, "Destination folder error", f"Destination folder is not writable or does not exist: {dst_folder}")
             return
-        missing = sorted(list(get_table_items(left_table) - get_table_items(right_table)))
+        src_items = get_table_items(left_table)
+        dst_items = get_table_items(right_table)
+        missing = sorted(list(get_missing_files(src_items, dst_items)))
         if not missing:
             QMessageBox.information(window, "Nothing to copy", "No missing files to copy.")
             return
